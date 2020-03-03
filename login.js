@@ -17,18 +17,37 @@ class Login {
     initModel() {
 
     }
-    logg (objUser){
+    logg (objUser, response){
         
-        if(objUser.body.username && objUser.body.password){
+        if(objUser.username && objUser.password){
             const userData = {
-                "username": objUser.body.username,
-                "password": objUser.body.password
+                "username": objUser.username,
+                "password": objUser.password
             }
 
             fs.readFile('users.json',(err, fileContents)=>{
 
                 if(err) throw err;
-                const data = JSON.parse(fileContents);
+                /*
+
+                Convierto el contenido del archivo en un arreglo JSON y busco el usuario de acuerdo a su username
+                data es un objeto user del archivo users.json
+
+                JSON.parse(fileContents)         arreglo de objetos usuario
+                .find(                           espera un predicado de busqueda, se debe evaluar como un booleano (true o false)
+                user                             es una variable que existe solo en el predicado y representa cada objeto a evaular
+                => user.username === userData["username"] 
+                                                 es la evaluacion que debe dar como resultado true o false
+                
+                Si no se encuentra usuario devuelvo mensaje de no autenticacion y 
+                */ 
+                const data = JSON.parse(fileContents).find(user => user.username === userData["username"]);
+
+                if(!data){
+                    response.send({"Error": "usuario o contraseña incorrectas"});
+                    return;
+                }
+
                 bcrypt.compare(userData["password"],
                 data["password"],
                 (err, result)=>{
@@ -40,42 +59,26 @@ class Login {
                         result
                     ){
                         jwt.sign({"username": userData["username"]}, 
-                        selects['jwt_clave'],
+                        secrets['jwt_clave'],
                         (err, token) =>{
                             if(err) throw err;
                             //crear cookie
-                            res.cookie('sello', token);
-                        return ({"message":"Usuarios loggeado",
-                                        "message": token
-                        })
+                            response.cookie('sello', token);
+                            response.send({"message":"Usuarios loggeado",
+                                        "message": token}); 
                         }
                         )
                     }else{
-                        return ({"Error": "usuario o contraseña incorrectas"})
+                        response.send({"Error": "usuario o contraseña incorrectas"})
                     }
+
+                    return;
                 }
                 )
             })
 
         }
-        servidor.get('/endpointSecreto',(req, res)=>{
-            if(req.cookies.sello){
-        
-                jwt.verify(req.cookies.sello,
-                    secrets["jwt_clave"],
-                    (err, decoded)=>{//decode es lo que guarde dentro del token, cuando desfirmo sale lo de dentro del token
-                        if(err) throw err;
-                        if( decoded !== undefined){
-                            //TODA LA LOGICA DE ENDPOINT
-                            return ({"message":"Okay! you can cross"})
-                        }
-                    }
-                    )
-            }else{
-               
-                return ({"message":"you shall not pass"})
-            }
-        })
+       
     
     }
 
